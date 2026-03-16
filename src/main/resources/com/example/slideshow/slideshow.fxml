@@ -7,19 +7,23 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.TextArea?>
 <?import javafx.geometry.Insets?>
 
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.example.slideshow.Controller">
 
-    <!-- верхняя панель с фильтром -->
+
+    <!-- верхняя панель -->
     <top>
         <HBox spacing="10" alignment="CENTER">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
             <Label text="фильтр:"/>
-            <ComboBox fx:id="filterBox"/>
+            <ComboBox fx:id="filterBox" onAction="#onFilterChange"/>
+            <Label text="эффект:"/>
+            <ComboBox fx:id="effectBox" onAction="#onEffectChange"/>
         </HBox>
     </top>
 
@@ -31,6 +35,11 @@
                        fitHeight="400"
                        preserveRatio="true"/>
             <Label fx:id="counterLabel" text="0 из 0"/>
+            <TextArea fx:id="infoArea"
+                      prefWidth="600"
+                      prefHeight="100"
+                      editable="false"
+                      wrapText="true"/>
         </VBox>
     </center>
 
@@ -40,10 +49,10 @@
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Button text="|&lt;" onAction="#onFirst"/>  <!-- было < -->
-            <Button text="&lt;" onAction="#onPrev"/>    <!-- было < -->
-            <Button text="&gt;" onAction="#onNext"/>    <!-- было > -->
-            <Button text="&gt;|" onAction="#onLast"/>   <!-- было > -->
+            <Button text="&lt;&lt;" onAction="#onFirst"/>
+            <Button text="&lt;" onAction="#onPrev"/>
+            <Button text="&gt;" onAction="#onNext"/>
+            <Button text="&gt;&gt;" onAction="#onLast"/>
         </HBox>
     </bottom>
 

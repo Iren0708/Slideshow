@@ -5,6 +5,16 @@ import javafx.scene.image.ImageView;
 import javafx.scene.control.Label;
 import javafx.scene.control.ComboBox;
 import java.io.File;
+import javafx.animation.FadeTransition;
+import javafx.animation.TranslateTransition;
+import javafx.util.Duration;
+import javafx.scene.control.TextArea;
+import com.drew.imaging.ImageMetadataReader;
+import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifSubIFDDirectory;
+import javafx.scene.image.Image;
+import javafx.animation.*;
+import javafx.scene.Node;
 
 public class Controller {
     @FXML
@@ -13,11 +23,18 @@ public class Controller {
     private Label counterLabel;
     @FXML
     private ComboBox<String> filterBox;
+    @FXML
+    private TextArea infoArea;
+    @FXML
+    private ComboBox<String> effectBox;
+
+    private String currentEffect = "исчезание";
 
     private ImageCollection collection;
     private Iterator iterator;
     private ImageLoader loader;
     private int currentIndex;
+
 
     @FXML
     public void initialize() {
@@ -27,10 +44,20 @@ public class Controller {
         iterator = collection.getIterator();
         currentIndex = 0;
 
+        // фильтры
         filterBox.getItems().addAll("все", "jpg", "png", "gif");
         filterBox.setValue("все");
 
+        // эффекты
+        effectBox.getItems().addAll("исчезание", "сдвиг", "масштаб", "поворот");
+        effectBox.setValue("исчезание");
+
         showCurrentImage();
+    }
+    @FXML
+    private void onEffectChange() {
+        currentEffect = effectBox.getValue();
+
     }
 
     @FXML
@@ -67,17 +94,110 @@ public class Controller {
         showCurrentImage();
     }
 
+    @FXML
+    private void onFilterChange() {
+        String selected = filterBox.getValue();
+        if (selected == null) return;
+
+        collection.setFilter(selected);
+        iterator = collection.getIterator();
+        currentIndex = 0;
+        showCurrentImage();
+    }
     private void showCurrentImage() {
-        File currentFile = collection.getFile(currentIndex);
-        if (currentFile != null) {
-            imageView.setImage(loader.loadFromFile(currentFile));
+        int total = collection.size();
+
+        if (total == 0) {
+            imageView.setImage(null);
+            counterLabel.setText("нет картинок");
+            infoArea.setText("");
+            return;
         }
 
-        int total = collection.size();
-        if (total == 0) {
-            counterLabel.setText("нет картинок");
-        } else {
-            counterLabel.setText((currentIndex + 1) + " из " + total);
+        File currentFile = collection.getFile(currentIndex);
+        if (currentFile != null) {
+            applyEffect(currentFile);  // вместо прямой загрузки
         }
+
+        counterLabel.setText((currentIndex + 1) + " из " + total);
+        showFileInfo(currentFile);     // добавляем информацию
+    }
+
+    private void applyEffect(File file) {
+        if (file == null) return;
+
+        Image newImage = loader.loadFromFile(file);
+        if (newImage == null) return;
+
+        imageView.setImage(newImage);
+
+        // останавливаем старые анимации
+        imageView.getTransforms().clear();
+
+        // выбираем эффект
+        switch (currentEffect) {
+            case "исчезание":
+                FadeTransition fade = new FadeTransition(Duration.millis(500), imageView);
+                fade.setFromValue(0);
+                fade.setToValue(1);
+                fade.play();
+                break;
+
+            case "сдвиг":
+                TranslateTransition move = new TranslateTransition(Duration.millis(500), imageView);
+                move.setFromX(-50);
+                move.setToX(0);
+                move.play();
+                break;
+
+            case "масштаб":
+                ScaleTransition scale = new ScaleTransition(Duration.millis(500), imageView);
+                scale.setFromX(0.5);
+                scale.setFromY(0.5);
+                scale.setToX(1);
+                scale.setToY(1);
+                scale.play();
+                break;
+
+            case "поворот":
+                RotateTransition rotate = new RotateTransition(Duration.millis(500), imageView);
+                rotate.setFromAngle(-90);
+                rotate.setToAngle(0);
+                rotate.play();
+                break;
+        }
+    }
+    private void showFileInfo(File file) {
+        if (file == null) {
+            infoArea.setText("");
+            return;
+        }
+
+        StringBuilder info = new StringBuilder();
+        info.append("имя: ").append(file.getName()).append("\n");
+        info.append("размер: ").append(file.length() / 1024).append(" кб\n");
+
+        // пробуем прочитать exif
+        try {
+            Metadata metadata = ImageMetadataReader.readMetadata(file);
+            ExifSubIFDDirectory exif = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+
+            if (exif != null) {
+                java.util.Date date = exif.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
+                if (date != null) {
+                    info.append("снято: ").append(date).append("\n");
+                }
+
+                String make = exif.getString(ExifSubIFDDirectory.TAG_MAKE);
+                String model = exif.getString(ExifSubIFDDirectory.TAG_MODEL);
+                if (make != null && model != null) {
+                    info.append("камера: ").append(make).append(" ").append(model).append("\n");
+                }
+            }
+        } catch (Exception e) {
+            // нет exif - ничего страшного
+        }
+
+        infoArea.setText(info.toString());
     }
 }
