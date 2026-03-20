@@ -15,6 +15,9 @@ import com.drew.metadata.exif.ExifSubIFDDirectory;
 import javafx.scene.image.Image;
 import javafx.animation.*;
 import javafx.scene.Node;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 
 public class Controller {
     @FXML
@@ -34,12 +37,14 @@ public class Controller {
     private Iterator iterator;
     private ImageLoader loader;
     private int currentIndex;
+    private Timeline timeline;
+    private boolean isPlaying = false;
 
 
     @FXML
     public void initialize() {
         loader = new ImageLoader();
-        File folder = new File("photos");
+        File folder = new File(getClass().getResource("/photos").getPath());
         collection = new ImageCollection(folder);
         iterator = collection.getIterator();
         currentIndex = 0;
@@ -51,6 +56,8 @@ public class Controller {
         // эффекты
         effectBox.getItems().addAll("исчезание", "сдвиг", "масштаб", "поворот");
         effectBox.setValue("исчезание");
+        timeline = new Timeline(new KeyFrame(Duration.seconds(2), e -> onNext()));
+        timeline.setCycleCount(Timeline.INDEFINITE);
 
         showCurrentImage();
     }
@@ -62,6 +69,10 @@ public class Controller {
 
     @FXML
     private void onNext() {
+        if (isPlaying) {
+            timeline.stop();
+            isPlaying = false;
+        }
         if (collection.size() == 0) return;
         iterator.next();
         currentIndex = (currentIndex + 1) % collection.size();
@@ -70,6 +81,10 @@ public class Controller {
 
     @FXML
     private void onPrev() {
+        if (isPlaying) {
+            timeline.stop();
+            isPlaying = false;
+        }
         if (collection.size() == 0) return;
         iterator.preview();
         currentIndex = (currentIndex - 1 + collection.size()) % collection.size();
@@ -78,6 +93,10 @@ public class Controller {
 
     @FXML
     private void onFirst() {
+        if (isPlaying) {
+            timeline.stop();
+            isPlaying = false;
+        }
         if (collection.size() == 0) return;
         currentIndex = 0;
         iterator = collection.getIterator();
@@ -86,6 +105,10 @@ public class Controller {
 
     @FXML
     private void onLast() {
+        if (isPlaying) {
+            timeline.stop();
+            isPlaying = false;
+        }
         if (collection.size() == 0) return;
         currentIndex = collection.size() - 1;
         for (int i = 0; i < currentIndex; i++) {

@@ -53,6 +53,8 @@
             <Button text="&lt;" onAction="#onPrev"/>
             <Button text="&gt;" onAction="#onNext"/>
             <Button text="&gt;&gt;" onAction="#onLast"/>
+            <Button text="▶ воспроизвести" onAction="#onPlay"/>
+            <Button text="⏸ стоп" onAction="#onStop"/>
         </HBox>
     </bottom>
 

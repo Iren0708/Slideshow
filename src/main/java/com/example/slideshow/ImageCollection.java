@@ -2,7 +2,6 @@ package com.example.slideshow;
 
 import java.io.File;
 import java.io.FilenameFilter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -10,6 +9,7 @@ public class ImageCollection implements Aggregate {
     private File[] files;
     private File directory;
     private String currentFilter;
+    private List<File> fileList;
 
     public ImageCollection(File directory) {
         this.directory = directory;
@@ -26,6 +26,7 @@ public class ImageCollection implements Aggregate {
     private void loadFiles() {
         if (directory == null || !directory.exists()) {
             files = new File[0];
+            fileList = Arrays.asList(files);
             return;
         }
 
@@ -54,10 +55,17 @@ public class ImageCollection implements Aggregate {
         if (files == null) {
             files = new File[0];
         }
+        fileList = Arrays.asList(files);
     }
 
+    // обычный итератор
     public Iterator getIterator() {
         return new ImageFileIterator();
+    }
+
+    // новый итератор с горкой
+    public Iterator getHillIterator() {
+        return new HillIterator(fileList);
     }
 
     public File getFile(int index) {
