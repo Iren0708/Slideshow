@@ -3,8 +3,8 @@ package com.example.slideshow;
 import java.io.File;
 import java.io.FilenameFilter;
 import javafx.scene.image.Image;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public class ImageCollection implements Aggregate {
     private File[] files;
@@ -25,13 +25,12 @@ public class ImageCollection implements Aggregate {
 
         String[] allowedExtensions;
         if (filterExtension == null || filterExtension.equals("Все")) {
-            // Убрали .bmp и .jpg, оставили только .jpeg, .png, .gif
-            allowedExtensions = new String[]{".jpeg", ".png", ".gif"};
+            allowedExtensions = new String[]{".jpeg", ".jpg", ".png", ".gif"};
         } else {
             allowedExtensions = new String[]{filterExtension.toLowerCase()};
         }
 
-        files = directory.listFiles(new FilenameFilter() {
+        File[] rawFiles = directory.listFiles(new FilenameFilter() {
             @Override
             public boolean accept(File dir, String name) {
                 String lower = name.toLowerCase();
@@ -42,7 +41,20 @@ public class ImageCollection implements Aggregate {
             }
         });
 
-        if (files == null) files = new File[0];
+        if (rawFiles == null) {
+            files = new File[0];
+            return;
+        }
+
+        // СОРТИРОВКА ПО ВОЗРАСТАНИЮ ДАТЫ ПОСЛЕДНЕГО ИЗМЕНЕНИЯ (старые → новые)
+        Arrays.sort(rawFiles, new Comparator<File>() {
+            @Override
+            public int compare(File f1, File f2) {
+                return Long.compare(f1.lastModified(), f2.lastModified());
+            }
+        });
+
+        files = rawFiles;
     }
 
     public void setFilter(File directory, String filterExtension) {

@@ -111,13 +111,19 @@ public class Controller {
         }
         int index = iterator.getCurrentIndex() + 1;
         counterLabel.setText(index + " из " + size);
-        // Информация о файле + EXIF
+
         File file = iterator.getCurrentFile();
         if (file != null) {
+            // Форматируем дату последнего изменения
+            long lastModified = file.lastModified();
+            java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
+            String dateStr = sdf.format(new java.util.Date(lastModified));
+
             StringBuilder sb = new StringBuilder();
             sb.append("Имя: ").append(file.getName()).append("\n");
             sb.append("Размер: ").append(file.length() / 1024).append(" КБ\n");
             sb.append("Путь: ").append(file.getAbsolutePath()).append("\n");
+            sb.append("Дата изменения: ").append(dateStr).append("\n");
             sb.append("EXIF:\n").append(ExifReader.getExifInfo(file));
             infoArea.setText(sb.toString());
         } else {
