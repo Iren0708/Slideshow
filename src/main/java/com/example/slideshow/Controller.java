@@ -2,202 +2,196 @@ package com.example.slideshow;
 
 import javafx.fxml.FXML;
 import javafx.scene.image.ImageView;
-import javafx.scene.control.Label;
-import javafx.scene.control.ComboBox;
-import java.io.File;
-import javafx.animation.FadeTransition;
-import javafx.animation.TranslateTransition;
-import javafx.util.Duration;
-import javafx.scene.control.TextArea;
-import com.drew.imaging.ImageMetadataReader;
-import com.drew.metadata.Metadata;
-import com.drew.metadata.exif.ExifSubIFDDirectory;
+import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.animation.*;
-import javafx.scene.Node;
+import javafx.util.Duration;
+import java.io.File;
 
 public class Controller {
-    @FXML
-    private ImageView imageView;
-    @FXML
-    private Label counterLabel;
-    @FXML
-    private ComboBox<String> filterBox;
-    @FXML
-    private TextArea infoArea;
-    @FXML
-    private ComboBox<String> effectBox;
 
-    private String currentEffect = "исчезание";
+    @FXML private ImageView imageView;
+    @FXML private Label counterLabel;
+    @FXML private ComboBox<String> filterBox;
+    @FXML private ComboBox<String> effectBox;
+    @FXML private TextArea infoArea;
+    @FXML private Button playButton;
 
     private ImageCollection collection;
     private Iterator iterator;
     private ImageLoader loader;
-    private int currentIndex;
-
+    private File currentFolder;
+    private Timeline autoPlayTimeline;
+    private boolean isAutoPlaying = false;
 
     @FXML
     public void initialize() {
         loader = new ImageLoader();
-        File folder = new File("photos");
-        collection = new ImageCollection(folder);
-        iterator = collection.getIterator();
-        currentIndex = 0;
+        currentFolder = new File("photos");
 
-        // фильтры
-        filterBox.getItems().addAll("все", "jpg", "png", "gif");
-        filterBox.setValue("все");
+        // Заполнение комбобоксов
+        filterBox.getItems().addAll("Все", ".jpeg", ".png", ".gif");
+        filterBox.setValue("Все");
+        effectBox.getItems().addAll("Нет эффекта", "Исчезание", "Масштабирование");
+        effectBox.setValue("Нет эффекта");
 
-        // эффекты
-        effectBox.getItems().addAll("исчезание", "сдвиг", "масштаб", "поворот");
-        effectBox.setValue("исчезание");
-
-        showCurrentImage();
-    }
-    @FXML
-    private void onEffectChange() {
-        currentEffect = effectBox.getValue();
-
-    }
-
-    @FXML
-    private void onNext() {
-        if (collection.size() == 0) return;
-        iterator.next();
-        currentIndex = (currentIndex + 1) % collection.size();
-        showCurrentImage();
-    }
-
-    @FXML
-    private void onPrev() {
-        if (collection.size() == 0) return;
-        iterator.preview();
-        currentIndex = (currentIndex - 1 + collection.size()) % collection.size();
-        showCurrentImage();
-    }
-
-    @FXML
-    private void onFirst() {
-        if (collection.size() == 0) return;
-        currentIndex = 0;
+        // Загружаем коллекцию с начальным фильтром
+        collection = new ImageCollection(currentFolder, filterBox.getValue());
         iterator = collection.getIterator();
         showCurrentImage();
+
+        // Обработчики смены фильтра и эффекта
+        filterBox.setOnAction(e -> applyFilter());
+        effectBox.setOnAction(e -> { /* просто сохраняем выбор, применяется при смене картинки */ });
     }
 
-    @FXML
-    private void onLast() {
-        if (collection.size() == 0) return;
-        currentIndex = collection.size() - 1;
-        for (int i = 0; i < currentIndex; i++) {
-            iterator.next();
-        }
-        showCurrentImage();
-    }
-
-    @FXML
-    private void onFilterChange() {
-        String selected = filterBox.getValue();
-        if (selected == null) return;
-
-        collection.setFilter(selected);
+    private void applyFilter() {
+        if (isAutoPlaying) stopAutoPlay();
+        String selectedFilter = filterBox.getValue();
+        collection.setFilter(currentFolder, selectedFilter);
         iterator = collection.getIterator();
-        currentIndex = 0;
-        showCurrentImage();
-    }
-    private void showCurrentImage() {
-        int total = collection.size();
-
-        if (total == 0) {
+        if (collection.size() > 0) {
+            Image img = iterator.first();
+            if (img != null) imageView.setImage(img);
+        } else {
             imageView.setImage(null);
-            counterLabel.setText("нет картинок");
-            infoArea.setText("");
-            return;
         }
-
-        File currentFile = collection.getFile(currentIndex);
-        if (currentFile != null) {
-            applyEffect(currentFile);  // вместо прямой загрузки
-        }
-
-        counterLabel.setText((currentIndex + 1) + " из " + total);
-        showFileInfo(currentFile);     // добавляем информацию
+        updateCounterAndInfo();
     }
 
-    private void applyEffect(File file) {
-        if (file == null) return;
+    private void showCurrentImage() {
+        if (collection.size() == 0) {
+            imageView.setImage(null);
+            counterLabel.setText("0 из 0");
+            infoArea.setText("Нет изображений в папке 'photos'");
+            return;
+        }
+        File currentFile = iterator.getCurrentFile();
+        Image img = loader.loadFromFile(currentFile);
+        applyTransition(img);
+        updateCounterAndInfo();
+    }
 
-        Image newImage = loader.loadFromFile(file);
-        if (newImage == null) return;
-
+    private void applyTransition(Image newImage) {
+        String effect = effectBox.getValue();
+        if (effect == null || effect.equals("Нет эффекта")) {
+            imageView.setImage(newImage);
+            return;
+        }
+        // Для плавности: сначала устанавливаем новое изображение, затем запускаем анимацию появления
         imageView.setImage(newImage);
-
-        // останавливаем старые анимации
-        imageView.getTransforms().clear();
-
-        // выбираем эффект
-        switch (currentEffect) {
-            case "исчезание":
-                FadeTransition fade = new FadeTransition(Duration.millis(500), imageView);
-                fade.setFromValue(0);
-                fade.setToValue(1);
-                fade.play();
+        Transition transition = null;
+        switch (effect) {
+            case "Исчезание":
+                FadeTransition ft = new FadeTransition(Duration.millis(500), imageView);
+                ft.setFromValue(0);
+                ft.setToValue(1);
+                transition = ft;
                 break;
-
-            case "сдвиг":
-                TranslateTransition move = new TranslateTransition(Duration.millis(500), imageView);
-                move.setFromX(-50);
-                move.setToX(0);
-                move.play();
+            case "Масштабирование":
+                ScaleTransition st = new ScaleTransition(Duration.millis(500), imageView);
+                st.setFromX(0.8);
+                st.setFromY(0.8);
+                st.setToX(1);
+                st.setToY(1);
+                transition = st;
                 break;
-
-            case "масштаб":
-                ScaleTransition scale = new ScaleTransition(Duration.millis(500), imageView);
-                scale.setFromX(0.5);
-                scale.setFromY(0.5);
-                scale.setToX(1);
-                scale.setToY(1);
-                scale.play();
-                break;
-
-            case "поворот":
-                RotateTransition rotate = new RotateTransition(Duration.millis(500), imageView);
-                rotate.setFromAngle(-90);
-                rotate.setToAngle(0);
-                rotate.play();
-                break;
+        }
+        if (transition != null) {
+            transition.play();
         }
     }
-    private void showFileInfo(File file) {
-        if (file == null) {
-            infoArea.setText("");
+
+    private void updateCounterAndInfo() {
+        int size = collection.size();
+        if (size == 0) {
+            counterLabel.setText("0 из 0");
+            infoArea.setText("Нет изображений");
             return;
         }
-
-        StringBuilder info = new StringBuilder();
-        info.append("имя: ").append(file.getName()).append("\n");
-        info.append("размер: ").append(file.length() / 1024).append(" кб\n");
-
-        // пробуем прочитать exif
-        try {
-            Metadata metadata = ImageMetadataReader.readMetadata(file);
-            ExifSubIFDDirectory exif = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
-
-            if (exif != null) {
-                java.util.Date date = exif.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL);
-                if (date != null) {
-                    info.append("снято: ").append(date).append("\n");
-                }
-
-                String make = exif.getString(ExifSubIFDDirectory.TAG_MAKE);
-                String model = exif.getString(ExifSubIFDDirectory.TAG_MODEL);
-                if (make != null && model != null) {
-                    info.append("камера: ").append(make).append(" ").append(model).append("\n");
-                }
-            }
-        } catch (Exception e) {
-            // нет exif - ничего страшного
+        int index = iterator.getCurrentIndex() + 1;
+        counterLabel.setText(index + " из " + size);
+        // Информация о файле + EXIF
+        File file = iterator.getCurrentFile();
+        if (file != null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Имя: ").append(file.getName()).append("\n");
+            sb.append("Размер: ").append(file.length() / 1024).append(" КБ\n");
+            sb.append("Путь: ").append(file.getAbsolutePath()).append("\n");
+            sb.append("EXIF:\n").append(ExifReader.getExifInfo(file));
+            infoArea.setText(sb.toString());
+        } else {
+            infoArea.setText("Нет данных о файле");
         }
+    }
 
-        infoArea.setText(info.toString());
+    // Навигация
+    @FXML
+    private void next() {
+        if (isAutoPlaying) stopAutoPlay();
+        if (collection.size() == 0) return;
+        Image img = iterator.next();
+        if (img != null) applyTransition(img);
+        updateCounterAndInfo();
+    }
+
+    @FXML
+    private void prev() {
+        if (isAutoPlaying) stopAutoPlay();
+        if (collection.size() == 0) return;
+        Image img = iterator.previous();
+        if (img != null) applyTransition(img);
+        updateCounterAndInfo();
+    }
+
+    @FXML
+    private void first() {
+        if (isAutoPlaying) stopAutoPlay();
+        if (collection.size() == 0) return;
+        Image img = iterator.first();
+        if (img != null) applyTransition(img);
+        updateCounterAndInfo();
+    }
+
+    @FXML
+    private void last() {
+        if (isAutoPlaying) stopAutoPlay();
+        if (collection.size() == 0) return;
+        Image img = iterator.last();
+        if (img != null) applyTransition(img);
+        updateCounterAndInfo();
+    }
+
+    // Автоматический режим (слайд-шоу)
+    @FXML
+    private void toggleAutoPlay() {
+        if (isAutoPlaying) {
+            stopAutoPlay();
+        } else {
+            startAutoPlay();
+        }
+    }
+
+    private void startAutoPlay() {
+        if (collection.size() == 0) return;
+        isAutoPlaying = true;
+        playButton.setText("⏸ Pause");
+        autoPlayTimeline = new Timeline(new KeyFrame(Duration.seconds(3), e -> {
+            if (collection.size() > 0) {
+                Image img = iterator.next();
+                if (img != null) applyTransition(img);
+                updateCounterAndInfo();
+            }
+        }));
+        autoPlayTimeline.setCycleCount(Timeline.INDEFINITE);
+        autoPlayTimeline.play();
+    }
+
+    private void stopAutoPlay() {
+        if (autoPlayTimeline != null) {
+            autoPlayTimeline.stop();
+        }
+        isAutoPlaying = false;
+        playButton.setText("▶ Play");
     }
 }

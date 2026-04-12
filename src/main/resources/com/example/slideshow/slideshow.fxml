@@ -13,21 +13,18 @@
 <BorderPane xmlns:fx="http://javafx.com/fxml"
             fx:controller="com.example.slideshow.Controller">
 
-
-    <!-- верхняя панель -->
     <top>
         <HBox spacing="10" alignment="CENTER">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Label text="фильтр:"/>
-            <ComboBox fx:id="filterBox" onAction="#onFilterChange"/>
-            <Label text="эффект:"/>
-            <ComboBox fx:id="effectBox" onAction="#onEffectChange"/>
+            <Label text="Фильтр:"/>
+            <ComboBox fx:id="filterBox" />
+            <Label text="Эффект:"/>
+            <ComboBox fx:id="effectBox" />
         </HBox>
     </top>
 
-    <!-- центр - картинка -->
     <center>
         <VBox alignment="CENTER" spacing="10">
             <ImageView fx:id="imageView"
@@ -37,22 +34,22 @@
             <Label fx:id="counterLabel" text="0 из 0"/>
             <TextArea fx:id="infoArea"
                       prefWidth="600"
-                      prefHeight="100"
+                      prefHeight="120"
                       editable="false"
                       wrapText="true"/>
         </VBox>
     </center>
 
-    <!-- нижняя панель с кнопками -->
     <bottom>
         <HBox spacing="10" alignment="CENTER">
             <padding>
                 <Insets top="10" right="10" bottom="10" left="10"/>
             </padding>
-            <Button text="&lt;&lt;" onAction="#onFirst"/>
-            <Button text="&lt;" onAction="#onPrev"/>
-            <Button text="&gt;" onAction="#onNext"/>
-            <Button text="&gt;&gt;" onAction="#onLast"/>
+            <Button text="⏮" onAction="#first"/>
+            <Button text="◀" onAction="#prev"/>
+            <Button text="▶" onAction="#next"/>
+            <Button text="⏭" onAction="#last"/>
+            <Button fx:id="playButton" text="▶ Play" onAction="#toggleAutoPlay"/>
         </HBox>
     </bottom>
 

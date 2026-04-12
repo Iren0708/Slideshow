@@ -1,8 +1,15 @@
 package com.example.slideshow;
 
+import javafx.scene.image.Image;
+import java.io.File;
+
 public interface Iterator {
-    public boolean hasNext();
-    public Object next();
-    public Object preview();
-    public boolean hasPreview();
+    boolean hasNext();
+    Image next();
+    boolean hasPrevious();
+    Image previous();
+    Image first();
+    Image last();
+    int getCurrentIndex();
+    File getCurrentFile();
 }

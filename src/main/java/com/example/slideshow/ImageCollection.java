@@ -2,73 +2,66 @@ package com.example.slideshow;
 
 import java.io.File;
 import java.io.FilenameFilter;
+import javafx.scene.image.Image;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 public class ImageCollection implements Aggregate {
     private File[] files;
-    private File directory;
+    private ImageLoader loader;
     private String currentFilter;
 
-    public ImageCollection(File directory) {
-        this.directory = directory;
-        this.currentFilter = "все";
-        loadFiles();
+    public ImageCollection(File directory, String filterExtension) {
+        loader = new ImageLoader();
+        this.currentFilter = filterExtension;
+        reloadFiles(directory, filterExtension);
     }
 
-    // загрузка с фильтром
-    public void setFilter(String filter) {
-        this.currentFilter = filter;
-        loadFiles();
-    }
-
-    private void loadFiles() {
-        if (directory == null || !directory.exists()) {
+    private void reloadFiles(File directory, String filterExtension) {
+        if (directory == null || !directory.exists() || !directory.isDirectory()) {
             files = new File[0];
             return;
         }
 
-        if (currentFilter.equals("все")) {
-            // все картинки
-            files = directory.listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    String lower = name.toLowerCase();
-                    return lower.endsWith(".jpg") || lower.endsWith(".jpeg") ||
-                            lower.endsWith(".png") || lower.endsWith(".gif") ||
-                            lower.endsWith(".bmp");
-                }
-            });
+        String[] allowedExtensions;
+        if (filterExtension == null || filterExtension.equals("Все")) {
+            // Убрали .bmp и .jpg, оставили только .jpeg, .png, .gif
+            allowedExtensions = new String[]{".jpeg", ".png", ".gif"};
         } else {
-            // только выбранный формат
-            String ext = "." + currentFilter.toLowerCase();
-            files = directory.listFiles(new FilenameFilter() {
-                @Override
-                public boolean accept(File dir, String name) {
-                    return name.toLowerCase().endsWith(ext);
+            allowedExtensions = new String[]{filterExtension.toLowerCase()};
+        }
+
+        files = directory.listFiles(new FilenameFilter() {
+            @Override
+            public boolean accept(File dir, String name) {
+                String lower = name.toLowerCase();
+                for (String ext : allowedExtensions) {
+                    if (lower.endsWith(ext)) return true;
                 }
-            });
-        }
+                return false;
+            }
+        });
 
-        if (files == null) {
-            files = new File[0];
-        }
+        if (files == null) files = new File[0];
     }
 
-    public Iterator getIterator() {
-        return new ImageFileIterator();
-    }
-
-    public File getFile(int index) {
-        if (index >= 0 && index < files.length) {
-            return files[index];
-        }
-        return null;
+    public void setFilter(File directory, String filterExtension) {
+        reloadFiles(directory, filterExtension);
+        currentFilter = filterExtension;
     }
 
     public int size() {
         return files.length;
+    }
+
+    public File getFile(int index) {
+        if (index >= 0 && index < files.length) return files[index];
+        return null;
+    }
+
+    @Override
+    public Iterator getIterator() {
+        return new ImageFileIterator();
     }
 
     private class ImageFileIterator implements Iterator {
@@ -80,31 +73,44 @@ public class ImageCollection implements Aggregate {
         }
 
         @Override
-        public Object next() {
+        public Image next() {
             if (files.length == 0) return null;
             currentIndex = (currentIndex + 1) % files.length;
-            return files[currentIndex];
+            return loader.loadFromFile(files[currentIndex]);
         }
 
         @Override
-        public Object preview() {
-            if (files.length == 0) return null;
-            currentIndex = (currentIndex - 1 + files.length) % files.length;
-            return files[currentIndex];
-        }
-
-        public boolean hasPreview() {
+        public boolean hasPrevious() {
             return files.length > 0;
         }
 
-        public void reset() {
-            currentIndex = 0;
+        @Override
+        public Image previous() {
+            if (files.length == 0) return null;
+            currentIndex = (currentIndex - 1 + files.length) % files.length;
+            return loader.loadFromFile(files[currentIndex]);
         }
 
+        @Override
+        public Image first() {
+            if (files.length == 0) return null;
+            currentIndex = 0;
+            return loader.loadFromFile(files[currentIndex]);
+        }
+
+        @Override
+        public Image last() {
+            if (files.length == 0) return null;
+            currentIndex = files.length - 1;
+            return loader.loadFromFile(files[currentIndex]);
+        }
+
+        @Override
         public int getCurrentIndex() {
             return currentIndex;
         }
 
+        @Override
         public File getCurrentFile() {
             if (files.length == 0) return null;
             return files[currentIndex];
